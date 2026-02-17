@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎟️ チケットもぎり</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Special+Elite&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #07090f;
+  --cream: #f4e6c8;
+  --red: #b3271c;
+  --gold: #c8913a;
+  --ink: #1c0c05;
+  --lInk: #573420;
+}
+html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); font-family:'Noto Sans JP',sans-serif; }
+
+/* ── Grain overlay ── */
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9000;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay; opacity:.4;
+}
+
+/* ── Screens ── */
+.screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity .55s ease, transform .55s ease; }
+.screen.out { opacity:0; pointer-events:none; transform:scale(.95) translateY(-16px); }
+
+/* ════════════ SCREEN 1 ════════════ */
+#s1 {
+  background:
+    radial-gradient(ellipse 55% 50% at 50% 55%, #181028 0%, transparent 65%),
+    radial-gradient(ellipse 90% 60% at 25% 15%, #0b1522 0%, transparent 55%),
+    var(--bg);
+}
+#s1::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:conic-gradient(from 195deg at 50% -15%, transparent 22deg, rgba(200,145,58,.07) 44deg, transparent 66deg);
+  animation:rot 10s linear infinite;
+}
+@keyframes rot { to { transform:rotate(360deg); } }
+
+.s1-label {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(.85rem,2vw,1rem);
+  letter-spacing:.45em; color:rgba(200,145,58,.55);
+  margin-bottom:26px;
+  animation:fup .8s ease both;
+}
+.h-wrap {
+  filter:drop-shadow(0 20px 55px rgba(0,0,0,.72)) drop-shadow(0 0 28px rgba(200,145,58,.13));
+  animation:glow 4.5s ease-in-out infinite, fup .85s .1s ease both;
+}
+@keyframes glow {
+  0%,100% { filter:drop-shadow(0 20px 55px rgba(0,0,0,.72)) drop-shadow(0 0 18px rgba(200,145,58,.1)); }
+  50%      { filter:drop-shadow(0 20px 55px rgba(0,0,0,.72)) drop-shadow(0 0 52px rgba(200,145,58,.3)); }
+}
+#hCanvas { display:block; max-width:min(680px,95vw); height:auto; }
+
+.go-btn {
+  margin-top:34px;
+  background:linear-gradient(135deg,#c8913a 0%,#e6b644 50%,#c8913a 100%);
+  color:var(--ink); font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(1.1rem,3vw,1.5rem); letter-spacing:.3em;
+  padding:14px 52px; border:none; border-radius:2px; cursor:pointer;
+  box-shadow:0 6px 28px rgba(200,145,58,.38), inset 0 1px 0 rgba(255,255,255,.38);
+  transition:transform .15s, box-shadow .15s;
+  animation:fup 1s .2s ease both;
+  position:relative;
+}
+.go-btn::after { content:''; position:absolute; inset:-4px; border:1px solid rgba(200,145,58,.38); border-radius:4px; pointer-events:none; }
+.go-btn:hover { transform:translateY(-2px); box-shadow:0 10px 38px rgba(200,145,58,.48); }
+.go-btn:active { transform:scale(.97); }
+@keyframes fup { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+/* ════════════ SCREEN 2 ════════════ */
+#s2 { background:#05070d; overflow:hidden; }
+#s2::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse 45% 65% at 50% 35%, rgba(179,39,28,.08) 0%, transparent 70%);
+}
+
+.s2-head {
+  position:absolute; top:22px; left:0; right:0; text-align:center;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(.8rem,1.8vw,.95rem);
+  letter-spacing:.38em; color:rgba(200,145,58,.4);
+}
+
+#swipeCanvas { display:block; touch-action:none; cursor:crosshair; position:absolute; }
+
+.hint {
+  position:absolute; display:flex; align-items:center; gap:10px;
+  font-size:.78rem; color:rgba(255,255,255,.32);
+  letter-spacing:.14em; pointer-events:none; white-space:nowrap;
+  transition:opacity .4s;
+}
+.hint .arr { animation:ap 1.1s ease-in-out infinite; color:rgba(200,145,58,.55); font-size:1.1rem; }
+@keyframes ap { 0%,100%{transform:translate(0,0);opacity:.45} 50%{transform:translate(5px,-5px);opacity:1} }
+
+.re-btn {
+  position:absolute; bottom:30px;
+  background:transparent; border:1px solid rgba(200,145,58,.35);
+  color:rgba(200,145,58,.7); font-family:'Noto Sans JP',sans-serif;
+  font-size:.8rem; font-weight:700; letter-spacing:.15em;
+  padding:9px 28px; border-radius:30px; cursor:pointer;
+  transition:all .2s; opacity:0; pointer-events:none;
+}
+.re-btn.show { opacity:1; pointer-events:auto; }
+.re-btn:hover { background:rgba(200,145,58,.1); border-color:var(--gold); }
+
+/* ════════════ RESULT ════════════ */
+.result-wrap { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:600; }
+.badge {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(2.2rem,7vw,3.8rem); letter-spacing:.09em; color:var(--ink);
+  background:linear-gradient(135deg,#d2a43e,#eebc52,#c78c28);
+  padding:18px 46px 14px; border-radius:3px;
+  box-shadow:0 12px 48px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.38);
+  transform:scale(0) rotate(-3deg);
+  transition:transform .5s cubic-bezier(.34,1.56,.64,1);
+  text-align:center; line-height:1;
+}
+.badge small { display:block; font-family:'Noto Sans JP',sans-serif; font-size:.27em; font-weight:900; letter-spacing:.22em; color:rgba(28,12,5,.65); margin-top:5px; }
+.badge.pop { transform:scale(1) rotate(-1deg); }
+
+/* Confetti */
+.cp { position:fixed; pointer-events:none; z-index:500; animation:cf linear forwards; }
+@keyframes cf { 0%{transform:translate(0,0) rotate(0deg);opacity:1} 75%{opacity:1} 100%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr));opacity:0} }
+</style>
+</head>
+<body>
+
+<!-- SCREEN 1 -->
+<div class="screen" id="s1">
+  <div class="s1-label">Your Ticket · 入場券</div>
+  <div class="h-wrap"><canvas id="hCanvas"></canvas></div>
+  <button class="go-btn" id="goBtn">このチケットをもぎる</button>
+</div>
+
+<!-- SCREEN 2 -->
+<div class="screen out" id="s2">
+  <div class="s2-head">TICKET MOGIRI · スワイプしてちぎる</div>
+  <canvas id="swipeCanvas"></canvas>
+  <div class="hint" id="hint">
+    <span class="arr">↗</span><span>どの方向でもスワイプでちぎれます</span><span class="arr">↗</span>
+  </div>
+  <button class="re-btn" id="reBtn">🔄 もう一度</button>
+</div>
+
+<div class="result-wrap"><div class="badge" id="badge">もぎり完了！<small>✓ ADMIT ONE</small></div></div>
+
+<script>
+// ─────────────────────────────────────────
+//  CONFIG
+// ─────────────────────────────────────────
+const DPR = Math.min(window.devicePixelRatio||1, 2);
+const TW=300, TH=530, PERF=160;
+
+// ─────────────────────────────────────────
+//  DRAWING
+// ─────────────────────────────────────────
+function rrect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function drawTicket(ctx, showPerf=true){
+  ctx.save();
+  rrect(ctx,0,0,TW,TH,16); ctx.fillStyle='#f4e6c8'; ctx.fill(); ctx.clip();
+
+  // ── STUB (top) ──
+  ctx.fillStyle='#b3271c';
+  ctx.fillRect(0,0,TW,PERF);
+  ctx.save(); ctx.globalAlpha=.1;
+  for(let i=-TW;i<TW*2;i+=16){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+TH,TH);ctx.strokeStyle='#fff';ctx.lineWidth=7;ctx.stroke();}
+  ctx.restore();
+  ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=1.5;
+  ctx.strokeRect(10,9,TW-20,PERF-13);
+
+  ctx.font=`bold ${TW*.115}px Bebas Neue,sans-serif`; ctx.fillStyle='rgba(255,255,255,.95)'; ctx.textAlign='center';
+  ctx.fillText('ADMIT ONE', TW/2, 50);
+  ctx.font=`bold ${TW*.058}px Noto Sans JP,sans-serif`; ctx.fillStyle='rgba(255,255,255,.75)';
+  ctx.fillText('SECTION A · ROW 7 · SEAT 23', TW/2, 76);
+
+  // barcode
+  const bx=TW/2-55, by=92, bh=28;
+  const bws=[1,2,1,3,1,1,2,1,2,3,1,2,1,1,3,1,2,1,2,1];
+  let cx2=bx; ctx.fillStyle='rgba(255,255,255,.65)';
+  bws.forEach(lw=>{ ctx.fillRect(cx2,by,lw,bh); cx2+=lw+2.5; });
+  ctx.font=`400 9px Special Elite,serif`; ctx.fillStyle='rgba(255,255,255,.45)';
+  ctx.fillText('4829-0037-CLAUDE', TW/2, 138);
+
+  // notches on perf
+  if(showPerf){
+    ctx.fillStyle='#05070d';
+    ctx.beginPath(); ctx.arc(0,PERF,10,-Math.PI/2,Math.PI/2); ctx.fill();
+    ctx.beginPath(); ctx.arc(TW,PERF,10,Math.PI/2,-Math.PI/2); ctx.fill();
+  }
+
+  // ── BODY ──
+  ctx.fillStyle='#c8913a'; ctx.fillRect(0,PERF,10,TH-PERF);
+  ctx.fillStyle='#c8913a';
+  ctx.fillRect(26, PERF+22, TW-46, 1.5);
+  ctx.fillRect(26, TH-40, TW-46, 1.5);
+
+  ctx.font=`bold 12px Bebas Neue,sans-serif`; ctx.fillStyle='#c8913a';
+  ctx.textAlign='left'; ctx.fillText('★',26,PERF+20);
+  ctx.textAlign='right'; ctx.fillText('★',TW-16,PERF+20);
+
+  ctx.textAlign='center';
+  ctx.font=`bold ${TW*.14}px Bebas Neue,sans-serif`; ctx.fillStyle='#1c0c05';
+  ctx.fillText('CLAUDE', TW/2, PERF+70);
+  ctx.font=`bold ${TW*.082}px Bebas Neue,sans-serif`; ctx.fillStyle='#573420';
+  ctx.fillText('SONIC NIGHT', TW/2, PERF+97);
+
+  ctx.fillStyle='#c8913a'; ctx.fillRect(40,PERF+105,TW-80,2);
+
+  ctx.font=`700 ${TW*.054}px Noto Sans JP,sans-serif`; ctx.fillStyle='#573420';
+  ctx.fillText('LIVE EXPERIENCE 2025', TW/2, PERF+128);
+
+  ctx.font=`400 ${TW*.048}px Special Elite,serif`; ctx.fillStyle='#1c0c05';
+  ctx.fillText('SAT 15 NOV 2025', TW/2, PERF+163);
+  ctx.font=`400 ${TW*.043}px Special Elite,serif`; ctx.fillStyle='#573420';
+  ctx.fillText('OPEN 18:00  ·  START 19:00', TW/2, PERF+186);
+  ctx.fillText('CLAUDE ARENA, TOKYO', TW/2, PERF+209);
+
+  ctx.font=`bold ${TW*.112}px Bebas Neue,sans-serif`; ctx.fillStyle='#c8913a';
+  ctx.fillText('¥12,000', TW/2, PERF+262);
+  ctx.font=`400 ${TW*.037}px Noto Sans JP,sans-serif`; ctx.fillStyle='rgba(87,52,32,.5)';
+  ctx.fillText('（消費税込み）', TW/2, PERF+283);
+
+  // stamp circle
+  ctx.save(); ctx.translate(TW/2, PERF+348);
+  ctx.strokeStyle='rgba(179,39,28,.2)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(0,0,50,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,42,0,Math.PI*2); ctx.stroke();
+  ctx.font=`bold ${TW*.063}px Bebas Neue,sans-serif`; ctx.fillStyle='rgba(179,39,28,.28)'; ctx.textAlign='center';
+  ctx.fillText('OFFICIAL',0,-7);
+  ctx.font=`400 ${TW*.038}px Special Elite,serif`;
+  ctx.fillText('TICKET',0,11);
+  ctx.restore();
+
+  ctx.font='8.5px Noto Sans JP,sans-serif'; ctx.fillStyle='rgba(87,52,32,.38)';
+  ctx.fillText('※譲渡・転売禁止  No refunds or exchanges', TW/2, TH-20);
+
+  ctx.restore();
+
+  // perf dots
+  if(showPerf){
+    ctx.save();
+    for(let x=4;x<TW-4;x+=9){
+      ctx.beginPath(); ctx.arc(x,PERF,2.4,0,Math.PI*2);
+      ctx.fillStyle='rgba(130,90,60,.48)'; ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// ─────────────────────────────────────────
+//  HORIZONTAL TICKET (Screen 1)
+// ─────────────────────────────────────────
+const hC = document.getElementById('hCanvas');
+const hCtx = hC.getContext('2d');
+
+function buildHoriz(){
+  const dw = Math.min(680, window.innerWidth*.94);
+  const scale = dw/TH;
+  const dh = TW*scale;
+  hC.style.width=dw+'px'; hC.style.height=dh+'px';
+  hC.width=dw*DPR; hC.height=dh*DPR;
+  hCtx.scale(DPR,DPR);
+  hCtx.translate(dw/2, dh/2);
+  hCtx.rotate(-Math.PI/2);
+  const s=dh/TW;
+  hCtx.scale(s,s);
+  hCtx.translate(-TW/2,-TH/2);
+  drawTicket(hCtx,true);
+}
+buildHoriz();
+
+// ─────────────────────────────────────────
+//  SWIPE CANVAS
+// ─────────────────────────────────────────
+const sC = document.getElementById('swipeCanvas');
+const sCtx = sC.getContext('2d');
+
+let ts=1, offX=0, offY=0;  // ticketScale, canvas position
+let tearPts=null, tearProg=0;
+let S={IDLE:0,DRAG:1,ANIM:2,TORN:3};
+let mode=S.IDLE;
+let ds=null, dc=null;  // dragStart, dragCurrent client coords
+
+function buildSwipe(){
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const maxW=vw*.84, maxH=vh*.72;
+  ts = Math.min(maxW/TW, maxH/(TH*.7));
+  const cw=TW*ts, ch=TH*ts;
+  offX=(vw-cw)/2; offY=vh*.06;
+  sC.style.left=offX+'px'; sC.style.top=offY+'px';
+  sC.style.width=cw+'px'; sC.style.height=ch+'px';
+  sC.width=cw*DPR; sC.height=ch*DPR;
+
+  // hint below perf
+  const hEl=document.getElementById('hint');
+  hEl.style.top=(offY+PERF*ts+12)+'px';
+  hEl.style.left='50%'; hEl.style.transform='translateX(-50%)'; hEl.style.position='absolute';
+}
+
+function renderSwipe(){
+  sCtx.clearRect(0,0,sC.width,sC.height);
+  sCtx.save();
+  sCtx.scale(DPR*ts, DPR*ts);
+
+  if(mode===S.IDLE||(mode===S.DRAG&&tearProg===0)){
+    drawTicket(sCtx,true);
+  } else if(mode===S.DRAG){
+    drawBottom(sCtx);
+    drawTop(sCtx, 0, -tearProg*10);
+    drawTearFront(sCtx, tearProg);
+  } else if(mode===S.TORN){
+    drawBottom(sCtx);
+    // torn edge shadow
+    if(tearPts){
+      sCtx.save();
+      sCtx.beginPath();
+      tearPts.forEach((p,i)=>i?sCtx.lineTo(p.x,p.y):sCtx.moveTo(p.x,p.y));
+      sCtx.strokeStyle='rgba(0,0,0,.4)'; sCtx.lineWidth=3; sCtx.stroke();
+      sCtx.restore();
+    }
+  }
+  sCtx.restore();
+}
+
+function drawBottom(ctx){
+  ctx.save();
+  rrect(ctx,0,0,TW,TH,16); ctx.clip();
+  if(tearPts){
+    ctx.beginPath();
+    ctx.moveTo(tearPts[0].x, tearPts[0].y);
+    tearPts.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.lineTo(TW,TH+10); ctx.lineTo(-10,TH+10); ctx.closePath(); ctx.clip();
+  }
+  drawTicket(ctx,false);
+  ctx.restore();
+}
+
+function drawTop(ctx,dx,dy){
+  ctx.save(); ctx.translate(dx,dy);
+  rrect(ctx,0,0,TW,TH,16); ctx.clip();
+  if(tearPts){
+    ctx.beginPath();
+    ctx.moveTo(tearPts[0].x, tearPts[0].y);
+    tearPts.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.lineTo(TW,-10); ctx.lineTo(-10,-10); ctx.closePath(); ctx.clip();
+  }
+  drawTicket(ctx,false);
+  ctx.restore();
+}
+
+function drawTearFront(ctx, prog){
+  if(!tearPts||prog<=0) return;
+  const n=Math.floor(tearPts.length*prog);
+  if(n<2) return;
+  ctx.save();
+  ctx.beginPath();
+  tearPts.slice(0,n).forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+  ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.lineWidth=2.5; ctx.stroke();
+  ctx.strokeStyle='rgba(255,220,160,.5)'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+}
+
+function genTear(){
+  const pts=[];
+  for(let i=0;i<=50;i++){
+    const t=i/50;
+    const x=t*TW;
+    const jit=(Math.random()-.5)*13 + Math.sin(i*2.1)*5 + Math.cos(i*3.9)*2.5;
+    pts.push({x, y:PERF+jit});
+  }
+  return pts;
+}
+
+// ─────────────────────────────────────────
+//  POINTER INPUT
+// ─────────────────────────────────────────
+sC.addEventListener('pointerdown', pd, {passive:false});
+window.addEventListener('pointermove', pm, {passive:false});
+window.addEventListener('pointerup', pu, {passive:false});
+window.addEventListener('pointercancel', pu, {passive:false});
+
+function pd(e){
+  if(mode!==S.IDLE) return;
+  e.preventDefault();
+  ds={x:e.clientX, y:e.clientY};
+  dc={x:e.clientX, y:e.clientY};
+  mode=S.DRAG;
+  if(!tearPts) tearPts=genTear();
+  tearProg=0;
+}
+
+function pm(e){
+  if(mode!==S.DRAG) return;
+  e.preventDefault();
+  dc={x:e.clientX, y:e.clientY};
+  const dx=dc.x-ds.x, dy=dc.y-ds.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  tearProg=Math.min(1, dist/(TW*ts*.65));
+  renderSwipe();
+}
+
+function pu(){
+  if(mode!==S.DRAG) return;
+  const dx=dc.x-ds.x, dy=dc.y-ds.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  if(tearProg>.42) completeTear();
+  else snapBack();
+}
+
+function snapBack(){
+  const sp=tearProg, t0=performance.now(), dur=340;
+  function step(t){
+    const p=Math.min(1,(t-t0)/dur);
+    const e=1-Math.pow(1-p,3);
+    tearProg=sp*(1-e);
+    renderSwipe();
+    if(p<1) requestAnimationFrame(step);
+    else { tearProg=0; tearPts=null; mode=S.IDLE; renderSwipe(); }
+  }
+  requestAnimationFrame(step);
+}
+
+// ─────────────────────────────────────────
+//  TEAR COMPLETE
+// ─────────────────────────────────────────
+function completeTear(){
+  mode=S.ANIM;
+  tearProg=1; renderSwipe();
+  if(navigator.vibrate) navigator.vibrate([45,10,25]);
+  document.getElementById('hint').style.opacity='0';
+
+  // ── Build top-stub image ──
+  const sw=TW*ts, sh=(PERF+22)*ts;
+  const off=document.createElement('canvas');
+  off.width=sw*DPR; off.height=sh*DPR;
+  const oc=off.getContext('2d');
+  oc.scale(DPR*ts, DPR*ts);
+
+  // Draw top with torn bottom edge
+  oc.save();
+  oc.beginPath();
+  const r=16;
+  oc.moveTo(r,0); oc.lineTo(TW-r,0);
+  oc.quadraticCurveTo(TW,0,TW,r);
+  oc.lineTo(TW, tearPts[tearPts.length-1].y+4);
+  for(let i=tearPts.length-1;i>=0;i--) oc.lineTo(tearPts[i].x, tearPts[i].y);
+  oc.lineTo(0, tearPts[0].y+4);
+  oc.lineTo(0,r);
+  oc.quadraticCurveTo(0,0,r,0);
+  oc.closePath(); oc.clip();
+  drawTicket(oc,false);
+  oc.restore();
+
+  // DOM flying element
+  const img=document.createElement('img');
+  img.src=off.toDataURL();
+  img.style.cssText=`
+    position:fixed; left:${offX}px; top:${offY}px;
+    width:${sw}px; height:${sh}px;
+    pointer-events:none; z-index:400;
+    transform-origin:30% 90%;
+    will-change:transform,opacity;
+  `;
+  document.body.appendChild(img);
+
+  // Show remaining ticket
+  mode=S.TORN; renderSwipe();
+
+  // Fly to upper-right
+  const vw=window.innerWidth, vh=window.innerHeight;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    flyTo(img, vw*.55, -vh*.55, 32, 650, ()=>img.remove());
+  }));
+
+  setTimeout(()=>{ spawnConfetti(); showBadge(); document.getElementById('reBtn').classList.add('show'); }, 170);
+}
+
+function flyTo(el, tx, ty, rot, dur, cb){
+  let t0=null;
+  function step(t){
+    if(!t0) t0=t;
+    const p=Math.min(1,(t-t0)/dur);
+    const e=p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
+    const op=p<.45?1:1-(p-.45)*1.8;
+    el.style.transform=`translate(${tx*e}px,${ty*e}px) rotate(${rot*e}deg) scale(${1-.25*e})`;
+    el.style.opacity=Math.max(0,op);
+    if(p<1) requestAnimationFrame(step); else cb&&cb();
+  }
+  requestAnimationFrame(step);
+}
+
+// ─────────────────────────────────────────
+//  CONFETTI
+// ─────────────────────────────────────────
+function spawnConfetti(){
+  const cols=['#c8913a','#e6b644','#b3271c','#f4e6c8','#fff','#7a1e0e','#e29030'];
+  const sh=['■','◆','●','★','▲'];
+  for(let i=0;i<72;i++){
+    const el=document.createElement('div');
+    el.className='cp';
+    const tx=(Math.random()-.5)*420+'px';
+    const ty=-(180+Math.random()*520)+'px';
+    const tr=(Math.random()*720-360)+'deg';
+    el.textContent=sh[Math.floor(Math.random()*sh.length)];
+    el.style.cssText=`left:${15+Math.random()*70}vw;top:48vh;color:${cols[Math.floor(Math.random()*cols.length)]};font-size:${7+Math.random()*10}px;--tx:${tx};--ty:${ty};--tr:${tr};animation-duration:${.85+Math.random()*1.5}s;animation-delay:${Math.random()*.3}s;`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend',()=>el.remove());
+  }
+}
+
+// ─────────────────────────────────────────
+//  RESULT BADGE
+// ─────────────────────────────────────────
+function showBadge(){
+  const el=document.getElementById('badge');
+  el.classList.add('pop');
+  setTimeout(()=>el.classList.remove('pop'),2800);
+}
+
+// ─────────────────────────────────────────
+//  RESET
+// ─────────────────────────────────────────
+document.getElementById('reBtn').addEventListener('click',()=>{
+  tearPts=null; tearProg=0; mode=S.IDLE;
+  document.getElementById('hint').style.opacity='1';
+  document.getElementById('reBtn').classList.remove('show');
+  renderSwipe();
+});
+
+// ─────────────────────────────────────────
+//  TRANSITION S1 → S2
+// ─────────────────────────────────────────
+document.getElementById('goBtn').addEventListener('click',()=>{
+  document.getElementById('s1').classList.add('out');
+  setTimeout(()=>{
+    const s2=document.getElementById('s2');
+    s2.classList.remove('out');
+    buildSwipe();
+    renderSwipe();
+  }, 320);
+});
+
+// resize
+window.addEventListener('resize',()=>{
+  buildHoriz();
+  if(!document.getElementById('s2').classList.contains('out')){
+    buildSwipe(); renderSwipe();
+  }
+});
+</script>
+</body>
+</html>
